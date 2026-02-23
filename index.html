@@ -2691,5 +2691,12 @@ if ("speechSynthesis" in window) {
   }
 }
 </script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("sw.js")
+      .then(() => console.log("PWA ativa"))
+      .catch(err => console.log("Erro SW:", err));
+  });
+}
 </body>
 </html>
