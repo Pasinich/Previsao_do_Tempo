@@ -2690,7 +2690,8 @@ if ("speechSynthesis" in window) {
 
   }
 }
-</script>
+
+
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("sw.js")
@@ -2698,5 +2699,6 @@ if ("serviceWorker" in navigator) {
       .catch(err => console.log("Erro SW:", err));
   });
 }
+</script>
 </body>
 </html>
