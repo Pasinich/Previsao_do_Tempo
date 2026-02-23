@@ -1,0 +1,2695 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Clima & Pressão Atmosférica</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1565c0">
+
+<!-- iPhone -->
+<link rel="apple-touch-icon" href="icone-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Clima Brasil">
+
+<style>
+/* =========================
+   VARIÁVEIS DE TEMA
+========================= */
+:root{
+ --bg1:#1565c0;
+ --bg2:#26c6da;
+ --card:rgba(255,255,255,.18);
+ --text:#fff;
+ --grafico:#fff;
+}
+body.dark{
+ --bg1:#0d1117;
+ --bg2:#161b22;
+ --card:rgba(255,255,255,.08);
+ --text:#e6edf3;
+ --grafico:#0d1117;
+}
+
+/* =========================
+   ESTILO GLOBAL
+========================= */
+body{
+ margin:0;
+ font-family:Arial,sans-serif;
+ background:linear-gradient(135deg,var(--bg1),var(--bg2));
+ color:var(--text);
+ padding:14px;
+ transition:.3s;
+}
+header{
+ display:flex;
+ justify-content:space-between;
+ align-items:center;
+ margin-bottom:6px;
+}
+h2{font-size:16px;margin:0;font-weight:normal;}
+h2 span{font-weight:bold;}
+button.toggle{
+ background:rgba(255,255,255,.25);
+ border:none;
+ border-radius:50px;
+ padding:6px;
+ font-size:14px;
+ cursor:pointer;
+ color:var(--text);
+}
+
+/* =========================
+   CARDS E INPUT
+========================= */
+.card{
+ background:var(--card);
+ border-radius:16px;
+ padding:16px;
+ margin-bottom:1px;
+}
+input{
+ width:100%;
+ padding:12px;
+ border:none;
+ border-radius:10px;
+ font-size:14px;
+}
+
+/* =========================
+   AUTOCOMPLETE
+========================= */
+.autocomplete{
+ background:#fff;
+ color:#000;
+ border-radius:10px;
+ margin-top:4px;
+ position:absolute;
+ z-index:10;
+ width:calc(100% - 32px);
+}
+.autocomplete div{padding:10px;cursor:pointer;}
+.autocomplete div:hover{background:#e0e0e0;}
+
+/* =========================
+   LINHAS DE INFORMAÇÃO
+========================= */
+.linha-info{margin-top:6px;font-size:14px;}
+.linha-status{margin-top:6px;font-size:13px;font-weight:bold;padding:6px;border-radius:8px;}
+
+.bom{background:#f9a825;color:#000;}
+.chuva{background:#f9a825;color:#000;}
+.tempestade{background:#f9a825;color:#000;}
+
+/* =========================
+   QUALIDADE DO AR
+========================= */
+.aq-bom      { color: #000000; font-weight: bold; }   /* Verde escuro — bom */
+.aq-mod      { color: #000000; font-weight: bold; }   /* Verde claro — moderado */
+.aq-ruim     { color: #000000; font-weight: bold; }   /* Laranja — insalubre para grupos sensíveis */
+.aq-muito    { color: #000000; font-weight: bold; }   /* Laranja avermelhado — muito insalubre */
+.aq-severo   { color: #000000; font-weight: bold; }   /* Vermelho vivo — severo */
+.aq-extremo  { color: #000000; font-weight: bold; }   /* Vermelho escuro — extremo */
+
+/* =========================
+   CHUVA
+========================= */
+.chuva-bom{color:#0A3D0A;font-weight:bold;}
+.chuva-mod{color:#ffeb3b;font-weight:bold;}
+.chuva-ruim{color:#ff9800;font-weight:bold;}
+.chuva-muito{color:#f44336;font-weight:bold;}
+.chuva-extremo{color:#6a1b9a;}
+
+/* =========================
+   SOL
+========================= */
+#linha-sol{display:flex;gap:8px;margin-top:12px;}
+.sol-dia{
+ flex:1;
+ background:#1a237e;
+ border-radius:10px;
+ padding:6px;
+ height:45px;
+ display:flex;
+ flex-direction:column;
+ justify-content:center;
+ align-items:center;
+ font-size:10px;
+ font-weight:bold;
+}
+body.dark .sol-dia{background:#0b3c5d;}
+
+/* =========================
+   PREVISÃO
+========================= */
+#previsao-5dias{
+ display:flex;
+ gap:6px;
+ margin-top:4px;
+ overflow-x:auto;
+ margin-bottom:4px;
+}
+.previsao-dia{
+ background:rgba(255,255,255,.18);
+ border-radius:10px;
+ padding:6px;
+ min-width:80px;
+ text-align:center;
+ font-size:10px;
+ font-weight:bold;
+}
+
+
+#btnMic {
+  padding:6px 10px;
+  cursor:pointer;
+  border:none;
+  border-radius:8px;
+  background:#1976d2;
+  color:white;
+  font-size:18px;
+  transition:0.3s;
+}
+
+#btnMic.escutando {
+  background:#d32f2f;
+  animation:pulsar 1s infinite;
+}
+
+#btnOuvir {
+  border:none;
+  background:none;
+  font-size:20px;
+  cursor:pointer;
+  transition:0.3s;
+}
+
+#btnOuvir.falando {
+  animation:pulsar 1s infinite;
+}
+
+@keyframes pulsar {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.25); }
+  100% { transform: scale(1); }
+}
+
+/* =========================
+   TELA INICIAL ANIMADA
+========================= */
+#tela-inicial{
+  position: fixed;
+  inset: 0;
+  background:
+    linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.55)),
+    url("https://images.unsplash.com/photo-1501973801540-537f08ccae7b");
+  background-size: cover;
+  background-position: center;
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+  transition: opacity .8s ease, transform .8s ease;
+}
+
+/* Conteúdo central */
+.intro-conteudo{
+  text-align: center;
+  color: white;
+  animation: fadeUp 1.2s ease forwards;
+}
+
+.icone-clima{
+  font-size: 60px;
+  margin-bottom: 15px;
+  animation: pulse 2s infinite;
+}
+
+.intro-conteudo h1{
+  font-size: 28px;
+  margin-bottom: 8px;
+}
+
+.intro-conteudo p{
+  opacity: .85;
+  font-size: 15px;
+}
+
+/* Fade de saída */
+#tela-inicial.oculta{
+  opacity: 0;
+  transform: scale(1.05);
+  pointer-events: none;
+}
+
+/* Animações */
+@keyframes fadeUp{
+  from{ opacity:0; transform:translateY(20px); }
+  to{ opacity:1; transform:translateY(0); }
+}
+
+@keyframes pulse{
+  0%,100%{ transform: scale(1); }
+  50%{ transform: scale(1.1); }
+}
+
+/* =========================
+   LOADER GLOBO GIRANDO
+========================= */
+.loader-globo{
+  font-size: 40px;
+  margin-top: 15px;
+  display: inline-block;
+  animation: girarGlobo 2s linear infinite;
+}
+
+@keyframes girarGlobo{
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+
+/* =========================
+   GRÁFICOS
+========================= */
+canvas{
+ background:var(--grafico);
+ border-radius:10px;
+ padding:8px;
+ margin-top:1px;
+}
+</style>
+</head>
+<body>
+
+<header>
+ <h2>🌡️ Clima em: <span id="nome-cidade"></span></h2>
+ <button class="toggle" id="toggleModo">🌙</button>
+</header>
+
+<div class="card" style="display:flex; gap:6px; align-items:center;">
+  <input id="cidade" placeholder="Digite a cidade!" style="flex:1;">
+  <button id="btnMic" style="padding:6px 10px; cursor:pointer;">🎤</button>
+</div>
+<div id="lista" class="autocomplete"></div>
+
+ <!-- ===== DADOS ATUAIS ===== -->
+ <div id="info"></div>
+ <div id="linha-pressao" class="linha-info"></div>
+ <div id="linha-visibilidade" class="linha-info"></div>
+ <div id="linha-vento" class="linha-info"></div>
+ <div id="linha-umidade" class="linha-info"></div>
+ <div id="linha-nevoeiro" class="linha-info"></div>
+ <div id="linha-lua" class="linha-info"></div>
+ <div id="linha-status" class="linha-status"></div>
+ <div id="linha-aviso" class="linha-info"></div>
+
+ <!-- ===== SOL E PREVISÃO ===== -->
+ <div id="linha-sol"></div>
+ <div id="previsao-5dias"></div>
+</div>
+
+<div class="card">
+ <canvas id="graficoPrevisao"></canvas>
+</div>
+
+<div class="card">
+ <canvas id="grafico"></canvas>
+</div>
+
+<div class="card">
+  <canvas id="graficoMensal"></canvas>
+</div>
+
+<div id="tela-inicial">
+  <div class="intro-conteudo">
+    <div class="icone-clima">🌤️</div>
+    <h1>Previsão do Tempo</h1>
+    <p>Aguarde localização atual...</p>
+    <div class="loader-globo">🌎</div>
+  </div>
+</div>
+
+
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/suncalc/1.9.0/suncalc.min.js"></script>
+<script>
+
+function limparTela(){
+  info.innerHTML = "⏳ Carregando dados...";
+  linhaPressao.innerHTML = "";
+  linhaVisibilidade.innerHTML = "";
+  linhaVento.innerHTML = "";
+  linhaUmidade.innerHTML = "";
+  linhaNevoeiro.innerHTML = "";
+  linhaLua.innerHTML = "";
+  linhaStatus.innerHTML = "";
+  linhaAviso.innerHTML = "";
+  linhaSol.innerHTML = "";
+  previsao5.innerHTML = "";
+
+  // destrói gráficos antigos
+  chart?.destroy(); 
+  chartPrevisao?.destroy();
+  chartMensal?.destroy();
+
+  chart = null;
+  chartPrevisao = null;
+  chartMensal = null;
+}
+
+function esconderTelaInicial(){
+  const tela = document.getElementById("tela-inicial");
+  if(tela){
+    tela.classList.add("oculta");
+    setTimeout(()=> tela.remove(), 800);
+  }
+}
+
+
+/* =========================
+   VARIÁVEIS GLOBAIS
+========================= */
+let lat=null, lon=null;
+let chart=null, chartPrevisao=null;
+let histSalvo=null;
+let pressaoTexto = "";
+let chartMensal = null;
+let paisSelecionado = "";
+let oni = -0.6;
+let estadoSelecionado = null;
+let tempCidade = null;
+let dadosCidade = null;
+let chuvaMM;
+
+
+async function obterEstadoPorLatLon(lat, lon){
+  try{
+    const r = await fetch(
+      `https://geocoding-api.open-meteo.com/v1/reverse` +
+      `?latitude=${lat}&longitude=${lon}&language=pt`
+    );
+    const d = await r.json();
+    return d?.results?.[0]?.admin1 ?? null;
+  }catch{
+    return null;
+  }
+}
+
+/* =========================
+   ELEMENTOS DOM
+========================= */
+const cidade=document.getElementById("cidade"),
+lista=document.getElementById("lista"),
+nomeCidade=document.getElementById("nome-cidade"),
+info=document.getElementById("info"),
+linhaPressao=document.getElementById("linha-pressao"),
+linhaVisibilidade=document.getElementById("linha-visibilidade"),
+linhaVento=document.getElementById("linha-vento"),
+linhaUmidade=document.getElementById("linha-umidade"),
+linhaNevoeiro=document.getElementById("linha-nevoeiro"),
+linhaLua=document.getElementById("linha-lua"),
+linhaStatus=document.getElementById("linha-status"),
+linhaAviso=document.getElementById("linha-aviso"),
+linhaSol=document.getElementById("linha-sol"),
+previsao5=document.getElementById("previsao-5dias"),
+btnModo=document.getElementById("toggleModo"),
+btnMic = document.getElementById("btnMic");
+
+
+
+/* =========================
+   MICROFONE PROFISSIONAL
+========================= */
+
+if (btnMic && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const recognition = new SpeechRecognition();
+
+  recognition.lang = 'pt-BR';
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  let ouvindo = false;
+
+  btnMic.addEventListener("click", () => {
+
+    if (!ouvindo) {
+      try {
+        recognition.start();
+        ouvindo = true;
+        btnMic.classList.add("escutando");
+        btnMic.innerText = "🗣️";
+      } catch (e) {}
+    } else {
+      recognition.stop();
+    }
+
+  });
+
+  recognition.onresult = function (event) {
+
+    const cidadeFalada = event.results[0][0].transcript;
+
+    cidade.value = cidadeFalada;
+    cidade.dispatchEvent(new Event('input'));
+
+  };
+
+  recognition.onend = function () {
+    ouvindo = false;
+    btnMic.classList.remove("escutando");
+    btnMic.innerText = "🎤";
+  };
+
+  recognition.onerror = function () {
+    ouvindo = false;
+    btnMic.classList.remove("escutando");
+    btnMic.innerText = "🎤";
+  };
+
+} else if (btnMic) {
+  btnMic.style.display = "none";
+}
+
+/* =========================
+   GEOLOCALIZAÇÃO INICIAL
+========================= */
+if (navigator.geolocation) {
+
+  nomeCidade.innerText = "📍Buscando sua localização...";
+
+  navigator.geolocation.getCurrentPosition(
+    async (pos) => {
+
+      lat = pos.coords.latitude;
+      lon = pos.coords.longitude;
+
+      try {
+        // 🔹 Reverse geocoding confiável via Nominatim
+        const resposta = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=pt`
+        );
+        const dados = await resposta.json();
+
+        console.log("RETORNO NOMINATIM:", dados); // para debug
+
+        if (dados && dados.address) {
+
+          const cidadeNome =
+            dados.address.city ||
+            dados.address.town ||
+            dados.address.village ||
+            dados.address.municipality ||
+            "";
+          const estadoNome = dados.address.state || "";
+          const paisNome = dados.address.country || "";
+          const paisCode = dados.address.country_code?.toUpperCase() || "";
+
+          if (cidadeNome) {
+            nomeCidade.innerText =
+              paisCode === "BR"
+                ? `${cidadeNome} - ${estadoNome}`
+                : `${cidadeNome} - ${paisNome}`;
+          } else if (estadoNome) {
+            nomeCidade.innerText = `${estadoNome}`;
+          } else {
+            nomeCidade.innerText = "📍Sua localização";
+          }
+
+          paisSelecionado = paisCode;
+          estadoSelecionado = estadoNome;
+
+        } else {
+          nomeCidade.innerText = "📍Sua localização";
+        }
+
+      } catch (erro) {
+        console.log("Erro ao obter cidade:", erro);
+        nomeCidade.innerText = "📍Sua localização";
+      }
+
+      // 🔥 Agora chama o clima
+      limparTela();
+      buscar();
+
+    },
+    (erro) => {
+      nomeCidade.innerText = "📍Permissão negada";
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0
+    }
+  );
+
+} else {
+
+  nomeCidade.innerText = "Clima em: Geolocalização não suportada";
+
+}
+
+/* =========================
+   Distância das cidades até a praia 
+========================= */
+function distanciaKm(lat1, lon1, lat2, lon2){
+  const R = 6371; // raio da Terra em km
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+
+  const a =
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI/180) *
+    Math.cos(lat2 * Math.PI/180) *
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c;
+}
+
+/* =========================
+   Pontos GPS litorânea 
+========================= */
+const pontosLitoralBrasil = [
+  // RS
+  [-29.3167, -49.7344], // Torres
+  [-29.2447, -49.7444], // Arroio do Sal
+  [-29.5500, -49.8897], // Três Cachoeiras
+  [-29.3356, -49.7306], // Dom Pedro de Alcântara
+  [-29.9670, -50.1267], // Imbé
+  [-29.9844, -50.1356], // Xangri-lá
+  [-29.6508, -50.1206], // Tramandaí
+  [-30.0033, -50.1356], // Capão da Canoa
+  [-30.1806, -50.2336], // Cidreira
+  [-30.2617, -50.5108], // Palmares do Sul
+  [-30.4208, -50.4119], // Mostardas
+  [-32.5667, -52.5333], // Rio Grande
+  [-31.7667, -52.3500], // São José do Norte
+  [-31.7364, -52.3336], // Tavares
+  [-33.6892, -53.4586], // Santa Vitória do Palmar
+
+
+  // SC
+  [-26.6322, -48.6847], // Barra Velha
+  [-26.7639, -48.6730], // Balneário Piçarras
+  [-26.9101, -48.6705], // Itajaí
+  [-26.8946, -48.6546], // Navegantes
+  [-27.1424, -48.5530], // Bombinhas
+  [-27.1564, -48.5532], // Porto Belo
+  [-27.0983, -48.6177], // Itapema
+  [-26.9926, -48.6350], // Balneário Camboriú
+  [-27.5954, -48.5480], // Florianópolis
+  [-27.6455, -48.6697], // Palhoça
+  [-28.2400, -48.6700], // Imbituba
+  [-28.0278, -48.6178], // Garopaba
+  [-28.4825, -48.7808], // Laguna
+  [-25.5683, -48.6167], // São Francisco do Sul
+  [-26.0731, -48.6170], // Itapoá
+  [-26.3044, -48.8487], // Joinville (área costeira/baía)
+
+  // PR
+  // ===== PARANÁ =====
+  [-25.8833, -48.6000], // Matinhos
+  [-25.8167, -48.5333], // Pontal do Paraná
+  [-25.9833, -48.8833], // Guaratuba
+  [-25.5167, -48.5000], // Paranaguá
+  [-25.5333, -48.3333], // Ilha do Mel
+  [-25.4500, -48.7000], // Morretes (baía de Paranaguá)
+
+  // SP
+  [-23.9608, -46.3336], // Santos
+  [-23.9940, -46.2560], // Guarujá
+  [-23.8544, -46.1386], // Bertioga
+  [-24.0058, -46.4028], // Praia Grande
+  [-24.1908, -46.7889], // Itanhaém
+  [-24.3208, -47.0008], // Peruíbe
+  [-23.7781, -45.3581], // Ilhabela
+  [-23.4336, -45.0831], // Ubatuba
+  [-23.7600, -45.4090], // São Sebastião
+  [-23.6200, -45.4120], // Caraguatatuba
+  [-24.7200, -47.5550], // Cananéia
+  [-25.0167, -47.9333], // Ilha Comprida
+  [-24.7081, -47.5553], // Iguape
+
+  // RJ
+  [-22.9068, -43.1729], // Rio de Janeiro
+  [-22.8832, -43.1034], // Niterói
+  [-22.8700, -43.7800], // Maricá
+  [-22.7561, -42.8644], // Saquarema
+  [-22.9300, -42.5100], // Araruama
+  [-22.8789, -42.0189], // Cabo Frio
+  [-22.9670, -41.9900], // Arraial do Cabo
+  [-22.7856, -41.9117], // Armação dos Búzios
+  [-22.3749, -41.7829], // Rio das Ostras
+  [-22.3734, -41.7816], // Macaé
+  [-21.7622, -41.3185], // Campos dos Goytacazes
+  [-21.6403, -41.0519], // São João da Barra
+  [-22.4120, -44.6550], // Angra dos Reis
+  [-23.2196, -44.7176], // Paraty
+  [-23.0064, -44.3180], // Mangaratiba
+
+  // ES
+  [-20.3155, -40.3128], // Vitória
+  [-20.3556, -40.2928], // Vila Velha
+  [-20.6710, -40.4950], // Guarapari
+  [-20.8190, -40.6170], // Anchieta
+  [-20.8370, -40.7310], // Piúma
+  [-21.0430, -40.8330], // Itapemirim
+  [-21.0083, -40.8333], // Marataízes
+  [-19.5360, -40.6270], // Linhares
+  [-18.7160, -39.8580], // São Mateus
+  [-18.5920, -39.7330], // Conceição da Barra
+  
+  // ===== BAHIA =====
+  [-12.9714, -38.5014], // Salvador
+  [-12.8860, -38.6780], // Camaçari
+  [-12.6180, -38.0500], // Mata de São João (Praia do Forte)
+  [-13.0080, -38.5320], // Lauro de Freitas
+  [-14.7880, -39.0460], // Itacaré
+  [-16.4498, -39.0646], // Porto Seguro
+  [-16.3770, -39.5800], // Santa Cruz Cabrália
+  [-17.5390, -39.7400], // Prado
+  [-15.7930, -38.8820], // Ilhéus
+  [-11.1810, -37.8030], // Conde
+  [-12.1450, -38.4200], // Itaparica
+
+  // ===== SERGIPE =====
+  [-10.9472, -37.0731], // Aracaju
+  [-11.3710, -37.4320], // Estância
+  [-10.7380, -36.8690], // Barra dos Coqueiros
+
+  // ===== ALAGOAS =====
+  [-9.6658, -35.7350], // Maceió
+  [-9.0122, -35.2225], // Maragogi
+  [-9.4720, -35.8390], // São Miguel dos Milagres
+  [-9.7810, -35.5480], // Barra de São Miguel
+  [-10.4060, -36.4340], // Piaçabuçu
+
+  // ===== PERNAMBUCO =====
+  [-8.0476, -34.8770], // Recife
+  [-8.0540, -34.8710], // Olinda
+  [-8.3990, -35.0630], // Ipojuca (Porto de Galinhas)
+  [-7.5630, -35.0020], // Goiana
+  [-8.3780, -34.9600], // Jaboatão dos Guararapes
+  [-8.1530, -35.3120], // Tamandaré
+
+  // ===== PARAÍBA =====
+  [-7.1150, -34.8610], // João Pessoa
+  [-7.0420, -34.8480], // Cabedelo
+  [-6.7750, -34.8270], // Baía da Traição
+  [-7.4700, -34.8350], // Conde-PB
+
+  // ===== RIO GRANDE DO NORTE =====
+  [-5.7945, -35.2110], // Natal
+  [-6.2281, -35.0450], // Tibau do Sul (Pipa)
+  [-5.0830, -36.2760], // Mossoró (região costeira)
+  [-4.8360, -37.2560], // Tibau-RN
+  [-4.9460, -37.1580], // Areia Branca
+
+  // ===== CEARÁ =====
+  [-3.7172, -38.5433], // Fortaleza
+  [-4.5550, -37.7690], // Aracati (Canoa Quebrada)
+  [-2.8890, -40.1190], // Jijoca de Jericoacoara
+  [-2.9220, -39.9160], // Camocim
+  [-3.4940, -39.5770], // Itapipoca
+  [-3.2200, -40.6940], // Acaraú
+
+  // ===== PIAUÍ =====
+  [-2.9050, -41.7740], // Parnaíba
+  [-2.8850, -41.6660], // Luís Correia
+  [-2.9020, -41.4170], // Cajueiro da Praia
+
+  // ===== MARANHÃO =====
+  [-2.5307, -44.3068], // São Luís
+  [-2.5020, -44.1960], // São José de Ribamar
+  [-2.4150, -44.4170], // Raposa
+  [-2.8760, -42.8220], // Barreirinhas
+  [-2.7619, -42.2747], // Tutóia
+
+// ===== PARÁ =====
+  [-0.6250, -47.3550], // Salinópolis
+  [-0.8610, -47.9180], // Bragança
+  [-0.6010, -47.6380], // Marapanim
+  [-0.7720, -47.7210], // Curuçá
+  [-0.9390, -48.2800], // São Caetano de Odivelas
+  [-0.6180, -46.9100], // Augusto Corrêa
+  [-0.7330, -48.5120], // Colares
+  [-1.1520, -47.7440], // Quatipuru
+  [-1.1950, -46.8190], // Viseu
+
+  // ===== AMAPÁ =====
+  [1.4140, -50.0980],  // Oiapoque
+  [0.7120, -49.7100],  // Calçoene
+  [0.8570, -50.0230],  // Amapá
+  [0.9020, -50.3460],  // Pracuúba
+  [0.9500, -50.8000],  // Tartarugalzinho
+  [0.0340, -51.0600],  // Cutias
+  [-0.0340, -51.0690], // Macapá (zona costeira)
+  [-0.3930, -51.1730], // Itaubal
+];
+
+/* =======================
+Cidade possui praia 
+========================= */
+function cidadePossuiPraia(pais, lat, lon){
+  if (pais !== "BR") return false;
+
+  return pontosLitoralBrasil.some(
+    ([plLat, plLon]) =>
+      distanciaKm(lat, lon, plLat, plLon) <= 20
+  );
+}
+
+/* =========================
+   MODO DIA / NOITE
+========================= */
+function aplicarModo(m){
+ document.body.classList.toggle("dark", m==="dark");
+
+ btnModo.innerHTML = m==="dark"
+  ? "☀️<span style='font-size:10px'>Modo Dia</span>"
+  : "🌙<span style='font-size:10px'>Modo Noite</span>";
+
+ localStorage.setItem("modo", m);
+ if(histSalvo) montarGrafico(histSalvo);
+ if(chartPrevisao) chartPrevisao.update();
+}
+
+function modoAuto(){
+ const h=new Date().getHours();
+ const sys=matchMedia("(prefers-color-scheme: dark)").matches;
+ return (h>=18 || h<=6 || sys) ? "dark" : "light";
+}
+
+aplicarModo(localStorage.getItem("modo") || modoAuto());
+
+btnModo.onclick = () =>
+ aplicarModo(document.body.classList.contains("dark") ? "light" : "dark");
+
+/* =========================
+   LIMPAR INPUT
+========================= */
+cidade.addEventListener("focus",()=>{
+ cidade.value="";
+ lista.innerHTML="";
+});
+
+/* =========================
+   AUTOCOMPLETE DE CIDADES
+========================= */
+
+let debounceTimer;
+let controller;
+
+cidade.addEventListener("input", () => {
+
+  clearTimeout(debounceTimer);
+
+  debounceTimer = setTimeout(() => {
+    buscarAutocomplete();
+  }, 350);
+
+});
+
+
+async function buscarAutocomplete() {
+
+  const termo = cidade.value.trim();
+  lista.innerHTML = "";
+
+  if (termo.length < 3) return;
+
+  if (controller) controller.abort();
+  controller = new AbortController();
+
+  const normalizar = (texto) =>
+    texto
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/['’`´-]/g, "")
+      .replace(/\s+/g, "")
+      .trim();
+
+  try {
+
+    async function consultar(nomeBusca) {
+      const resp = await fetch(
+        `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(nomeBusca)}&count=10&language=pt&format=json`,
+        { signal: controller.signal }
+      );
+      return await resp.json();
+    }
+
+    let resultadosAPI = [];
+
+    // 🔹 1️⃣ Busca termo original
+    const original = await consultar(termo);
+    if (original.results) resultadosAPI.push(...original.results);
+
+    // 🔹 2️⃣ Se tiver "do oeste", buscar também "d'oeste"
+    if (/do oeste/i.test(termo)) {
+      const alterado = termo.replace(/do oeste/i, "d'oeste");
+      const alt = await consultar(alterado);
+      if (alt.results) resultadosAPI.push(...alt.results);
+    }
+
+    // 🔹 3️⃣ Se tiver "d'oeste", buscar também "do oeste"
+    if (/d['’]?oeste/i.test(termo)) {
+      const alterado = termo.replace(/d['’]?oeste/i, "do oeste");
+      const alt = await consultar(alterado);
+      if (alt.results) resultadosAPI.push(...alt.results);
+    }
+
+    if (resultadosAPI.length === 0) return;
+
+    const buscaNormal = normalizar(termo);
+
+    let resultados = resultadosAPI
+      .filter(c => c.feature_code?.startsWith("P"))
+      .filter((c, index, self) =>
+        index === self.findIndex(t =>
+          t.name.toLowerCase() === c.name.toLowerCase() &&
+          t.admin1?.toLowerCase() === c.admin1?.toLowerCase() &&
+          t.country_code === c.country_code
+        )
+      );
+
+    resultados = resultados.map(c => {
+
+      let score = 0;
+      const nomeNormal = normalizar(c.name);
+
+      if (nomeNormal === buscaNormal) score += 6000;
+      if (nomeNormal.startsWith(buscaNormal)) score += 5000;
+      if (nomeNormal.includes(buscaNormal)) score += 3000;
+
+      if (c.feature_code === "PPLC") score += 3000;
+      if (c.feature_code === "PPLA") score += 2000;
+
+      if (c.country_code === "BR") score += 5000;
+
+      if (c.population) {
+        score += Math.min(c.population / 5000, 5000);
+      }
+
+      return { ...c, score };
+    });
+
+    resultados.sort((a, b) => b.score - a.score);
+
+    resultados.slice(0, 7).forEach(c => {
+
+      let local;
+      let nomeExibicao = ajustarNomeExibicao(c.name, c.country_code);
+
+      if (c.country_code === "BR" && c.admin1) {
+        local = `${nomeExibicao} - ${c.admin1}`;
+      } 
+      else if (c.admin1) {
+        local = `${nomeExibicao} - ${c.admin1} - ${c.country}`;
+      } 
+      else {
+        local = `${nomeExibicao} - ${c.country}`;
+      }
+
+      const div = document.createElement("div");
+      div.innerText = local;
+
+      div.onclick = () => {
+        cidade.value = local;
+        nomeCidade.innerText = local;
+        lat = c.latitude;
+        lon = c.longitude;
+        paisSelecionado = c.country_code;
+        estadoSelecionado = c.admin1 ?? null;
+
+        lista.innerHTML = "";
+        limparTela();
+        buscar();
+      };
+
+      lista.appendChild(div);
+    });
+
+  } catch (err) {
+    if (err.name !== "AbortError") {
+      console.error("Erro no autocomplete:", err);
+    }
+  }
+}
+
+/* =========================
+   ENTER SELECIONA PRIMEIRO
+========================= */
+cidade.addEventListener("keydown",e=>{
+ if(e.key==="Enter"){
+  const item = lista.querySelector("div");
+  if(item) item.click();
+ }
+});
+
+/* =========================
+   BUSCA PRINCIPAL
+========================= */
+async function buscar(){
+ if(lat===null || lon===null){
+  info.innerHTML="📍Selecione a cidade na lista";
+  return;
+ }
+
+  /* ===== API ATUAL ===== */
+ const rAtual = await fetch(
+  `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}` +
+  `&current_weather=true` +
+  `&hourly=windgusts_10m,shortwave_radiation,apparent_temperature,relativehumidity_2m,pressure_msl,precipitation,precipitation_probability,visibility,cloudcover,windspeed_10m` +
+  `&daily=sunrise,sunset,temperature_2m_min,temperature_2m_max,precipitation_sum,precipitation_probability_max,uv_index_max` +
+  `&timezone=auto`
+ );
+ const atual = await rAtual.json();
+ const latitudeAtual = atual.latitude;
+const longitudeAtual = atual.longitude;
+
+/* ===== API QUALIDADE DO AR ===== */
+ const rAQ = await fetch(
+  `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${lat}&longitude=${lon}&hourly=pm2_5,pm10,european_aqi&timezone=auto`
+ );
+ const aq = await rAQ.json();
+
+ /* =========================
+    ÍNDICE HORÁRIO ATUAL
+ ========================= */
+ const agora = Date.now();
+ let idx = 0, min = Infinity;
+
+ atual.hourly.time.forEach((t,i)=>{
+  const d = Math.abs(new Date(t).getTime() - agora);
+  if(d < min){ min = d; idx = i; }
+ });
+
+ let idxAQ = 0, minAQ = Infinity;
+ aq.hourly.time.forEach((t,i)=>{
+  const d = Math.abs(new Date(t).getTime() - agora);
+  if(d < minAQ){ minAQ = d; idxAQ = i; }
+ });
+
+function mostrarCidade(nome, pais) {
+  const el = document.getElementById("localizacao");
+
+  if (!el) return;
+
+  if (pais && pais !== "BR") {
+    el.innerHTML = `📍 ${nome} - ${pais}`;
+  } else {
+    el.innerHTML = `📍 ${nome}`;
+  }
+}
+
+
+
+/* =========================
+   PRÓXIMA CHUVA AGORA
+========================= */
+const chuvaMM = atual.hourly?.precipitation?.[idx] ?? 0;
+
+function avaliarChuva(chuvaMM, chuvaHora) {
+  chuvaMM = Number(chuvaMM) || 0;
+  chuvaHora = Number(chuvaHora) || 0;
+
+  if (chuvaMM > 0) {
+
+    if (chuvaMM < 2) {
+      return "🌦️ Garoa leve no momento";
+    }
+    else if (chuvaMM < 10) {
+      return "🌧️ Chuva moderada agora";
+    }
+    else {
+      return "⛈️ Chuva forte em andamento";
+    }
+
+  } else {
+
+    if (chuvaHora >= 90) {
+      return "🚨 Chuva quase certa nas próximas horas";
+    }
+    else if (chuvaHora >= 70) {
+      return "⚠️ Alta chance de chuva";
+    }
+    else if (chuvaHora >= 40) {
+      return "🌦️ Possível chuva";
+    }
+    else if (chuvaHora >= 20) {
+      return "☁️ Pequena chance de chuva";
+    }
+    else {
+      return "☀️ Sem previsão de chuva";
+    }
+
+  }
+}
+
+/* =========================
+   PRÓXIMA CHUVA
+========================= */
+let proximaChuva = "—";
+let probChuva = 0;
+let idxChuva = -1; // índice da próxima chuva
+
+for(let i = idx; i < atual.hourly.time.length; i++){
+  const mm = atual.hourly.precipitation?.[i] ?? 0;
+  const prob = atual.hourly.precipitation_probability?.[i] ?? 0;
+
+  if(mm > 0 || prob >= 20){
+    proximaChuva = atual.hourly.time[i].slice(11,16); 
+    probChuva = prob;
+    idxChuva = i; 
+    break;
+  }
+}
+
+/*=========================
+     PAINEL TEMPERATURA E UV FINAL USANDO HORA LOCAL
+=========================*/
+
+// Obter hora local da cidade direto do current_weather
+let horaLocal = 0;
+if (atual.current_weather?.time) {
+  const dt = new Date(atual.current_weather.time);
+  horaLocal = dt.getHours(); // 0-23
+}
+
+// Temperatura e sensação
+const temperaturaAtual = atual.current_weather?.temperature ?? "N/A";
+const sensacaoAtual =
+  atual.hourly?.apparent_temperature?.[idx] ??
+  temperaturaAtual;
+
+// UV diário (não existe UV horário)
+let uvIndex = (horaLocal >= 6 && horaLocal < 19)
+              ? Array.isArray(atual.daily?.uv_index_max) ? atual.daily.uv_index_max[0] : "N/A"
+              : 0; // noite = 0
+
+// Formata classe e descrição
+let classe="", descricao="";
+if (typeof uvIndex === "number") {
+  const uvInfo = formatarUV(uvIndex);
+  classe = uvInfo.classe;
+  descricao = uvInfo.descricao;
+}
+
+// Vitamina D
+const vitaminaD = (typeof uvIndex === "number") ? avaliarVitaminaD(uvIndex) : "N/A";
+
+// Atualiza painel
+info.innerHTML = `
+  <span style="font-size:14px">
+    🌡️ Temp.:<b>${temperaturaAtual}°C</b> (Sensação: ${sensacaoAtual}°C)
+    • ☀️UV: <b class="${classe}">${uvIndex}</b> ${descricao ? "(" + descricao + ")" : ""}
+  </span>`;
+  
+  
+  /* =========================
+   QUALIDADE DO AR (AQI)
+========================= */
+let usAQI = 0;
+
+if (aq?.hourly?.pm2_5?.length && typeof idxAQ === "number") {
+  const pm25 = aq.hourly.pm2_5[idxAQ] ?? 0;
+  usAQI = pm25ToUSAQI(pm25);
+}
+  
+
+/* =========================
+   UMIDADE / CHUVA / NEBULOSIDADE - CORRIGIDO
+========================= */
+const agora_chuva = new Date();
+let idx_chuva = 0;
+let menorDif = Infinity;
+
+// Encontra o índice da hora mais próxima da hora atual
+atual.hourly.time.forEach((t, i) => {
+  const horaAPI = new Date(t);
+  const dif = Math.abs(horaAPI.getTime() - agora_chuva.getTime());
+  if (dif < menorDif) {
+    menorDif = dif;
+    idx_chuva = i;
+  }
+});
+
+// Probabilidade de chuva: busca nos próximos 2 horários
+let chuvaHora = 0;
+for (let i = idx_chuva; i < idx_chuva + 2 && i < atual.hourly.precipitation_probability.length; i++) {
+  const v = atual.hourly.precipitation_probability[i];
+  if (v != null) {
+    chuvaHora = v;
+    break;
+  }
+}
+
+// Nebulosidade: procura o valor mais próximo do horário atual
+let neb = null;
+
+// Primeiro procura do índice atual para frente
+for (let i = idx_chuva; i < atual.hourly.cloudcover.length; i++) {
+  const v = atual.hourly.cloudcover[i];
+  if (v != null && v >= 0 && v <= 100) {
+    neb = v;
+    break;
+  }
+}
+
+// Se não encontrar, procura para trás
+if (neb === null) {
+  for (let i = idx_chuva - 1; i >= 0; i--) {
+    const v = atual.hourly.cloudcover[i];
+    if (v != null && v >= 0 && v <= 100) {
+      neb = v;
+      break;
+    }
+  }
+}
+
+const nebulosidade = neb !== null ? neb : "—";
+
+
+const pressaoAtual = atual.hourly?.pressure_msl?.[idx] ?? null;
+const chuvaMMAtual = chuvaMM ?? 0;
+const probChuvaAtual = chuvaHora ?? 0;
+
+linhaPressao.innerHTML = `
+  🎈Pressão:<b>${pressaoAtual != null ? pressaoAtual.toFixed(1) : "—"} hPa</b> •
+  🌧️Chuva (${chuvaMMAtual}mm) •
+  🌧️Prob.Chuva:<b class="${formatarChuvaClasse(probChuvaAtual)}">${probChuvaAtual}%</b>
+`;
+ 
+ /* =========================
+    VISIBILIDADE (VALOR VÁLIDO)
+ ========================= */
+ let vis = null;
+
+ for(let i = idx; i < atual.hourly.visibility.length; i++){
+  const v = atual.hourly.visibility[i];
+  if(v != null && v <= 30000){ vis = v; break; }
+ }
+ if(vis === null){
+  for(let i = idx-1; i >= 0; i--){
+   const v = atual.hourly.visibility[i];
+   if(v != null && v <= 30000){ vis = v; break; }
+  }
+ }
+
+ const visibilidade = vis != null ? (vis/1600).toFixed(2) : "—";
+
+ /* =========================
+    DIREÇÃO DO VENTO
+ ========================= */
+ const deg = atual.current_weather?.winddirection ?? null;
+
+ function degParaDirecao(d){
+  if(d==null) return "—";
+  const dirs = [
+   "Norte","Norte-Nordeste","Nordeste","Leste-Nordeste",
+   "Leste","Leste-Sudeste","Sudeste","Sul-Sudeste",
+   "Sul","Sul-Sudoeste","Sudoeste","Oeste-Sudoeste",
+   "Oeste","Oeste-Noroeste","Noroeste","Norte-Noroeste"
+  ];
+  return dirs[Math.round(d/22.5) % 16];
+ }
+
+/* =========================
+   RADIAÇÃO SOLAR - 100% CORRETO
+========================= */
+
+// Hora da cidade retornada pela API
+const agora_rad = atual.current_weather?.time
+  ? new Date(atual.current_weather.time).getTime()
+  : Date.now();
+
+let idxRad = 0;
+let menorDifRad = Infinity;
+
+// Procura a hora mais próxima da hora da cidade
+atual.hourly.time.forEach((t, i) => {
+  const dif = Math.abs(new Date(t).getTime() - agora_rad);
+  if (dif < menorDifRad) {
+    menorDifRad = dif;
+    idxRad = i;
+  }
+});
+
+// Pega a radiação correspondente
+let radiacaoAtual = atual.hourly.shortwave_radiation?.[idxRad] ?? 0;
+
+// Classificação
+let nivelRad = "";
+if (radiacaoAtual === 0) nivelRad = "Nulo";
+else if (radiacaoAtual < 200) nivelRad = "Fraca";
+else if (radiacaoAtual < 600) nivelRad = "Moderada";
+else if (radiacaoAtual < 900) nivelRad = "Forte";
+else nivelRad = "Muito forte";
+
+ const direcaoVento = degParaDirecao(deg);
+/* =========================
+    RAJADAS DE VENTO
+ ========================= */
+ let rajadas = atual.hourly?.windgusts_10m?.[idx] ?? "—";
+ 
+ 
+ linhaVisibilidade.innerHTML = `
+<span style="font-size:14px">
+  👁️Visibilidade:<b>${visibilidade} km</b> • 
+  💨Veloc.Vento:<b>${atual.current_weather.windspeed} km/h</b> 
+  (<b>${direcaoVento}</b>) • 
+  🌪️Rajadas:<b>${rajadas} km/h</b> • 
+  ☀️Radiação Solar:<b>${
+    typeof radiacaoAtual === "number"
+      ? `${radiacaoAtual.toFixed(0)} W/m² (${nivelRad})`
+      : "0 W/m²"
+  }</b>
+</span>`;
+
+/* =========================
+    NEVOEIRO
+ ========================= */
+let nevoeiro = "Ausente";
+
+// nevoeiro pela visibilidade (em METROS)
+if(vis !== null){
+  if(vis <= 1000){
+    nevoeiro = "Denso ";
+  }
+  else if(vis <= 2000){
+    nevoeiro = "Fraco ";
+  }
+}
+
+// confirmação por umidade + vento
+const umid = atual.hourly?.relativehumidity_2m?.[idx] ?? 0;
+const vento = atual.current_weather.windspeed;
+
+if(vis !== null && umid >= 84 && vento <= 4){
+  nevoeiro = "Esparsos ";
+}
+
+linhaUmidade.innerHTML =
+  `💧Umidade:<b>${umid}%</b> •
+   ☁️Nuvens:<b>${nebulosidade}%</b> • 
+   🌁Nevoeiro:<b>${nevoeiro}</b>`;
+  
+  
+ function estacaoDoAno(data = new Date(), lat = -30) {
+  const d = data.getDate();
+  const m = data.getMonth() + 1;
+  const norte = lat >= 0;
+
+  if (norte) {
+    // Hemisfério Norte
+    if ((m === 12 && d >= 21) || (m <= 3 && (m < 3 || d <= 20))) {
+      return "Inverno";
+    }
+    if ((m === 3 && d >= 21) || (m <= 6 && (m < 6 || d <= 20))) {
+      return "Primavera";
+    }
+    if ((m === 6 && d >= 21) || (m <= 9 && (m < 9 || d <= 22))) {
+      return "Verão";
+    }
+    return "Outono";
+  }
+
+  // Hemisfério Sul
+  if ((m === 12 && d >= 21) || (m <= 3 && (m < 3 || d <= 20))) {
+    return "Verão";
+  }
+  if ((m === 3 && d >= 21) || (m <= 6 && (m < 6 || d <= 20))) {
+    return "Outono";
+  }
+  if ((m === 6 && d >= 21) || (m <= 9 && (m < 9 || d <= 22))) {
+    return "Inverno";
+  }
+  return "Primavera";
+}
+
+
+let nomeCidadeFinal = nomeCidade.innerText;
+
+try {
+  const rCidade = await fetch(
+    `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${latitudeAtual}&longitude=${longitudeAtual}&language=pt&format=json`
+  );
+
+  const dCidade = await rCidade.json();
+
+  if (dCidade?.results?.length > 0) {
+
+    const c = dCidade.results[0];
+    const nome = c.name ?? "";
+    const estado = c.admin1 ?? "";
+    const pais = c.country ?? "";
+    const paisCode = c.country_code ?? "";
+
+    if (paisCode === "BR" && estado) {
+      nomeCidadeFinal = `${nome} - ${estado}`;
+    } else if (estado) {
+      nomeCidadeFinal = `${nome} - ${estado} - ${pais}`;
+    } else {
+      nomeCidadeFinal = `${nome} - ${pais}`;
+    }
+
+  }
+
+} catch(e){
+  console.log("Erro ao atualizar cidade:", e);
+}
+
+nomeCidade.innerText = nomeCidadeFinal;
+
+
+/* Montar painel climático */
+montarPainelClimatico({
+  atual,
+  idx,
+  idxChuva,
+  probChuva,
+  pais: paisSelecionado,   
+  estado: estadoSelecionado ,
+  cidade: nomeCidadeFinal,
+  nebulosidade 
+});
+
+esconderTelaInicial();
+
+async function montarPainelClimatico(
+{ atual, idx, idxChuva, probChuva, pais, estado,cidade, nebulosidade }) {
+const latPainel = atual.latitude ?? -30;
+const estacao = estacaoDoAno(new Date(), latPainel);
+const lua = calcularLua(new Date());
+const iluminacaoLua = Number(lua.iluminacao);
+
+const estrelas = avaliarEstrelas(
+  nebulosidade,
+  atual.hourly.precipitation_probability[idx],
+  iluminacaoLua
+  
+);
+
+  // 🔹 normalizações
+  const siglaEstado = normalizarEstadoParaSigla(estado);
+
+
+  /* ===== LUA ===== */
+  
+  linhaLua.innerHTML =
+    `🌙Lua: <b>${lua.fase}</b> • Luar: <b>${lua.iluminacao}%</b> • Idade: <b>${lua.idade} dias</b>`;
+
+  /* ===== STATUS BASE (COLORIDO) ===== */
+  let statusTexto = "";
+  if(atual.hourly.precipitation[idx] > 8 || atual.hourly.pressure_msl[idx] < 1005){
+    linhaStatus.className = "linha-status tempestade";
+    statusTexto = "⛈️Risco de Tempestade";
+  }
+  else if(atual.hourly.precipitation[idx] > 1 || atual.hourly.pressure_msl[idx] < 1012){
+    linhaStatus.className = "linha-status chuva";
+    statusTexto = "🌧️Possibilidade de Chuva";
+  }
+  else{
+    linhaStatus.className = "linha-status bom";
+    statusTexto = "☀️Tempo bom";
+  }
+
+  /* ===== CHUVA PREVISTA ===== */
+  let chuvaTexto = "";
+  if (Number.isInteger(idxChuva) && idxChuva >= 0) {
+    const t = new Date(atual.hourly.time[idxChuva]);
+    
+  // soma 3 hora
+     t.setHours(t.getHours() + 3); /* soma 3 horas para ajustar o tempo de chuva*/
+    const dataHora =
+      `${String(t.getDate()).padStart(2,"0")}/` +
+      `${String(t.getMonth()+1).padStart(2,"0")}/` +
+      `${t.getFullYear()} - ` +
+      `${String(t.getHours()).padStart(2,"0")}:` +
+      `${String(t.getMinutes()).padStart(2,"0")}`  ;
+      
+
+const chuvaAtual = Number(atual?.hourly?.precipitation?.[idx] ?? 0);
+
+if (chuvaAtual > 0) {
+  chuvaTexto = "";
+} else if (dataHora) {
+  chuvaTexto = `<span style="color:#8B008B; font-size:14px;">
+  <b>Próxima Chuva prevista:</span></b> <b>${dataHora} (${probChuva}%)</b>`;
+}
+      
+    }
+
+  /* ===== PRESSÃO MÉDIA */
+  pressaoTexto = "";
+  if(histSalvo && histSalvo.time?.length){
+    const dias={};
+    histSalvo.time.forEach((t,i)=>{
+      const d=t.split("T")[0];
+      dias[d] ??= {p:[], mm:0};
+      dias[d].p.push(histSalvo.pressure_msl[i]);
+      dias[d].mm += histSalvo.precipitation[i];
+    });
+    const press=[];
+    Object.values(dias).forEach(d=>{
+      if(d.mm>=1) press.push(d.p.reduce((a,b)=>a+b)/d.p.length);
+    });
+    if(press.length > 0){
+      const m = press.reduce((a,b)=>a+b)/press.length;
+      pressaoTexto = `🌧️Com pressão média:<b>${m.toFixed(1)} hPa</b>`;
+    } else {
+      pressaoTexto = `🌧️Dados insuficientes para calcular pressão média de chuva`;
+    }
+  } else {
+    pressaoTexto = `🌧️Dados históricos não disponíveis`;
+  }
+
+  /* ===== FENÔMENO ONI ===== */
+  let fenomeno = "Neutro";
+  if (oni >= 0.5) fenomeno = "El Niño";
+  else if (oni <= -0.5) fenomeno = "La Niña";
+
+/* ===== AVALIAÇÕES  Atividades ===== */
+const pesca = avaliarPesca(
+  atual.hourly.pressure_msl[idx],
+  atual.current_weather.windspeed,
+  atual.hourly.precipitation[idx]
+);
+
+const churrascoTexto = avaliarChurrasco(
+  atual.current_weather.temperature,
+  atual.hourly.precipitation_probability[idx],
+  atual.hourly.windspeed_10m[idx]
+);
+
+const corrida = avaliarCorrida(
+  atual.current_weather.temperature,
+  atual.hourly.precipitation_probability[idx],
+  atual.current_weather.windspeed,
+  atual.daily.uv_index_max?.[0] ?? 0
+);
+
+const caminhada = avaliarCaminhada(
+  atual.current_weather.temperature,
+  atual.hourly.precipitation_probability[idx],
+  atual.current_weather.windspeed,
+  atual.daily.uv_index_max?.[0] ?? 0,
+  vis
+);
+
+const ciclismo = avaliaCiclismo(
+  atual.hourly.precipitation_probability[idx],
+  atual.current_weather.windspeed,
+  atual.hourly.pressure_msl[idx]
+);
+
+
+
+const aviao = avaliarAviao(
+  atual.current_weather.windspeed,
+  vis,
+  atual.hourly.precipitation[idx],
+  statusTexto.includes("Tempestade")
+);
+
+const carro = avaliarCarro(
+  atual.hourly.precipitation_probability[idx],
+  vis,
+  atual.current_weather.windspeed
+);
+
+// Exemplo de variáveis já disponíveis do clima da cidade pesquisada
+tempCidade = atual.current_weather?.temperature ?? null;
+const tempAtual = tempCidade; // temperatura atual
+const chuvaProbAtual = atual.hourly?.precipitation_probability[idx] ?? 0;
+const ventoAtual = atual.current_weather?.windspeed ?? 0;
+const aqAtual = usAQI; // qualidade do ar
+// Acrescenta recomendação de roupas
+const tempAtual_roupas = atual.current_weather.temperature;
+// Avaliar moto
+const moto = avaliarMoto(tempAtual, chuvaProbAtual, ventoAtual, aqAtual);
+const chuvas = verificarChuvaDiaria(atual);
+
+const piscina = avaliarPiscina(
+  atual.current_weather.temperature,
+  atual.hourly.precipitation_probability[idx],
+  atual.current_weather.windspeed
+);
+
+const alergiasTexto = avaliarAlergias(
+  atual.hourly.relativehumidity_2m?.[idx] ?? 50,
+  atual.hourly.windspeed_10m?.[idx] ?? 0,
+  estacao
+);
+
+const gripeTexto = avaliarGripeResfriado(
+  atual.hourly.relativehumidity_2m?.[idx] ?? 50,
+  atual.current_weather.temperature
+);
+
+
+const mosquitosTexto = avaliarMosquitos(
+  atual.hourly.relativehumidity_2m?.[idx] ?? 50,
+  atual.hourly.precipitation_probability?.[idx] ?? 0,
+  atual.current_weather.temperature
+);
+
+const pragasTexto = avaliarPragas(
+  atual.current_weather.temperature,
+  atual.hourly.precipitation_probability[idx],
+  atual.hourly.relativehumidity_2m[idx]
+);
+
+  /* ===== IMPACTO SOMENTE BRASIL ===== */
+  let impactoTexto = "";
+  const paisNorm = (pais || "").toUpperCase().trim();
+
+  if (paisNorm === "BR" || paisNorm === "BRA" || paisNorm.includes("BRASIL") || paisNorm.includes("BRAZIL")) {
+
+    const mapaEstados = {
+      "RIO GRANDE DO SUL":"RS","SANTA CATARINA":"SC","PARANA":"PR",
+      "SAO PAULO":"SP","RIO DE JANEIRO":"RJ","MINAS GERAIS":"MG","ESPIRITO SANTO":"ES",
+      "MATO GROSSO":"MT","MATO GROSSO DO SUL":"MS","GOIAS":"GO","DISTRITO FEDERAL":"DF",
+      "BAHIA":"BA","SERGIPE":"SE","ALAGOAS":"AL","PERNAMBUCO":"PE","PARAIBA":"PB",
+      "RIO GRANDE DO NORTE":"RN","CEARA":"CE","PIAUI":"PI","MARANHAO":"MA",
+      "AMAZONAS":"AM","PARA":"PA","ACRE":"AC","RONDONIA":"RO","RORAIMA":"RR",
+      "AMAPA":"AP","TOCANTINS":"TO"
+    };
+
+    let est = (estado || "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toUpperCase()
+      .replace("ESTADO DE ", "")
+      .replace(" STATE", "")
+      .replace(" REGION", "")
+      .trim();
+
+    est = mapaEstados[est] ?? est;
+
+    const regiaoPorEstado = {
+      RS:"Sul",SC:"Sul",PR:"Sul",
+      SP:"Sudeste",RJ:"Sudeste",MG:"Sudeste",ES:"Sudeste",
+      MT:"Centro-Oeste",MS:"Centro-Oeste",GO:"Centro-Oeste",DF:"Centro-Oeste",
+      BA:"Nordeste",SE:"Nordeste",AL:"Nordeste",PE:"Nordeste",PB:"Nordeste",
+      RN:"Nordeste",CE:"Nordeste",PI:"Nordeste",MA:"Nordeste",
+      AM:"Norte",PA:"Norte",AC:"Norte",RO:"Norte",RR:"Norte",AP:"Norte",TO:"Norte"
+    };
+
+    const impacto = {
+      Sul:{
+        "El Niño":"Chuvas acima da média e temporais",
+        "La Niña":"Tempo mais seco. No Inverno,frio intenso!",
+        "Neutro":"Clima próximo do normal"
+      },
+      Sudeste:{
+        "El Niño":"Calor forte e chuva irregular",
+        "La Niña":"Verões mais chuvosos",
+        "Neutro":"Padrão típico"
+      },
+      "Centro-Oeste":{
+        "El Niño":"Calor e chuva mal distribuída",
+        "La Niña":"Chuvas mais constantes",
+        "Neutro":"Condições normais"
+      },
+      Nordeste:{
+        "El Niño":"Tendência a seca",
+        "La Niña":"Mais episódios de chuva",
+        "Neutro":"Variável"
+      },
+      Norte:{
+        "El Niño":"Menos chuva na Amazônia",
+        "La Niña":"Chuvas acima da média",
+        "Neutro":"Regime normal"
+      }
+    };
+
+    const regiao = regiaoPorEstado[est];
+    if (regiao && impacto[regiao]?.[fenomeno]) {
+      impactoTexto = `${regiao}:${impacto[regiao][fenomeno]}`;
+    }
+  }
+
+// Possuí praia a cidade 
+const possuiPraia = cidadePossuiPraia(
+  (pais || "").toUpperCase(),
+  lat,
+  lon
+);
+
+let alturaOnda = null;
+
+if (possuiPraia) {
+  buscarAlturaOnda(lat, lon).then(valor => {
+    const el = document.getElementById("altura-onda");
+    if (!el) return;
+
+    if (valor != null) {
+      el.innerHTML = valor.toFixed(1) + " metros";
+    } else {
+      el.innerHTML = "-";
+    }
+  });
+}
+
+const praia = possuiPraia
+  ? avaliarPraia(
+      atual.current_weather.temperature,
+      atual.hourly.precipitation_probability[idx],
+      atual.current_weather.windspeed,
+      atual.daily.uv_index_max?.[0] ?? 0
+    )
+  : "🏖️N/A";
+
+let praiaTexto;
+let ondaTexto;
+
+if (possuiPraia) {
+  praiaTexto = praia ?? "-";
+  ondaTexto = alturaOnda != null 
+    ? alturaOnda.toFixed(1) + " metros "
+    : "-";
+} else {
+  praiaTexto = `<span style="color:#888;">N/A</span>`;
+  ondaTexto = `<span style="color:#888;">N/A</span>`;
+}
+
+
+// Calcular Horário de Ouro e avaliação de fotografia
+const horarioOuro = calcularHorarioOuroCompacto(atual.daily.sunrise[0], atual.daily.sunset[0]);
+const avaliacaoFoto = avaliarFotografia(
+  atual.current_weather.temperature,
+  nebulosidade,
+  atual.hourly.precipitation_probability[idx],
+  atual.daily.sunrise[0],
+  atual.daily.sunset[0]
+);
+
+// Monta a exibição da fotografia com Horário de Ouro 
+const fotografia = `${avaliacaoFoto} <b style="color:#696969;font-size:14px;"></b>`;
+//const fotografia = `${avaliacaoFoto} <b style="color:#696969;font-size:14px;"> | Hora de Ouro</b>(${horarioOuro})`;
+
+
+/* ===== MONTA LINHA STATUS FINAL ===== */
+const mobileView = true; // true = Android / false = desktop
+const alertaTexto = "";
+
+const nomeCidadePainel = nomeCidadeFinal ?? "-";
+const estadoPainel = estado ? " - " + estado : "";
+
+
+
+// Painel relativo para posicionar o botão flutuante
+linhaStatus.style.position = "relative";
+
+// Monta a seção Praia/Ondas/Piscina
+let secaoAgua = "";
+
+if (possuiPraia) {
+  // Se a cidade tiver praia, mostra praia e ondas
+  secaoAgua = `
+  <div style="margin-top:4px">
+    <b style="color:#8B008B;font-size:14px;">Praia / Ondas / Piscina</b><br>
+    <b style="color:#696969;font-size:13px;">Praia</b>(${praiaTexto}) |
+    <b style="color:#696969;font-size:13px;">Ondas</b>(<b id="altura-onda">...</b>) |
+    <b style="color:#696969;font-size:13px;">Piscina</b>${piscina ?? "-"}
+  </div>`;
+} else {
+  // Se não houver praia, mostra somente piscina deslocada à esquerda
+  secaoAgua = `
+  <div style="margin-top:4px">
+  <b style="color:#8B008B;font-size:14px;">Piscina</b><br>
+    <b style="color:#696969;font-size:13px;">Piscina</b>${piscina ?? "-"}
+  </div>`;
+}
+let dataHoraLocal = atual.current_weather?.time ?? "";
+linhaStatus.innerHTML = `
+  ${!mobileView ? `<div>🕒 Data e Hora da Coleta: <b>${dataHoraLocal ?? ""}</b></div>` : ""}
+
+
+
+<div style="margin-top:4px">
+    <b style="color:#8B008B;font-size:14px;">
+      Previsão do Tempo Em</b>(${nomeCidadePainel})<br><br>
+  </div>
+  
+
+  ${chuvaTexto ? `<div>${chuvaTexto}</div>` : ""}
+  ${pressaoTexto && !mobileView ? `<div>📉 ${pressaoTexto}</div>` : ""}
+  ${alertaTexto ? `<div class="alerta">⚠️ ${alertaTexto}</div>` : ""}
+
+  <div style="margin-top:6px">
+  
+ 
+    <b style="color:#8B008B;font-size:14px;">Atividades ao Ar Livre </b><br>
+    <b style="color:#696969;font-size:13px;">Qualidade do Ar</b>${formatarAQ(usAQI)} |
+    <b style="color:#696969;font-size:13px;">Corrida</b>${corrida ?? ""} |
+    <b style="color:#696969;font-size:13px;">Caminhada</b>${caminhada ?? ""} |
+    <b style="color:#696969;font-size:13px;">Ciclismo</b>${ciclismo ?? ""} |
+    <b style="color:#696969;font-size:13px;">Observar Estrelas</b>${estrelas ?? ""} |
+    <b style="color:#696969;font-size:13px;">Pescaria</b>${pesca ?? ""} | 
+    <b style="color:#696969;font-size:13px;">Refeições ao Ar Livre</b>${churrascoTexto ? `  ${churrascoTexto}` : ""} |
+    <b style="color:#696969;font-size:13px;">Guarda-chuva</b>${chuvas ?? ""} |
+    <b style="color:#696969;font-size:13px;">Fotografar</b>${fotografia}
+  </div>
+
+  ${secaoAgua}
+
+  <div style="margin-top:4px">
+    <b style="color:#8B008B;font-size:14px;">Trânsito / Viagens</b><br>
+    <b style="color:#696969;font-size:13px;">Dirigir</b>${carro ?? ""} |
+    <b style="color:#696969;font-size:13px;">Motocicleta</b>${moto ?? ""} |
+    <b style="color:#696969;font-size:13px;">Vôo</b>${aviao ?? ""} 
+  </div>
+
+  ${alergiasTexto ? `
+    <div style="margin-top:4px">
+      <b style="color:#8B008B;font-size:14px;">Saúde/Bem Estar</b><br>
+      <b style="color:#696969;font-size:13px;">Alergias</b>(${alergiasTexto}) |
+      <b style="color:#696969;font-size:13px;">Gripe</b>(${gripeTexto}) |
+      <b style="color:#696969;font-size:13px;">Vitamina D</b>${vitaminaD} |
+      <b style="color:#696969;font-size:13px;">Roupas</b>${recomendarRoupas(tempAtual_roupas)}
+    </div>` : ""}
+
+  ${mosquitosTexto || pragasTexto ? `
+    <div style="margin-top:4px">
+      <b style="color:#8B008B;font-size:14px;">Pragas/Insetos</b><br>
+      <b style="color:#696969;font-size:13px;">Mosquitos</b>(${mosquitosTexto}) |
+      <b style="color:#696969;font-size:13px;">Pragas</b>(${pragasTexto ?? ""})
+    </div>` : ""}
+
+  <div style="margin-top:6px">
+    <b style="color:#8B008B;font-size:14px;">Estação:</b> ${estacao ?? "-"}
+  </div>
+
+  <div>
+    <b style="color:#8B008B;font-size:14px;">Fenômeno:</b> ${fenomeno ?? "-"}${impactoTexto ? ` (${impactoTexto})` : ""}
+  </div>
+
+   <!-- Botão flutuante no canto inferior direito -->
+    <button id="btnOuvir" class="btnVoz">🔊</button>
+  `;
+
+  /* ===== ESTILOS DO BOTÃO ===== */
+  const style = document.createElement("style");
+  style.innerHTML = `
+    @keyframes pulsar {0% {transform: scale(1);} 50% {transform: scale(1.15);} 100% {transform: scale(1);}}
+    .pulsando {animation: pulsar 1s infinite;}
+
+    #btnOuvir {
+      position:absolute; bottom:01px; right:01px; border:none; background:#ffffffcc;
+      font-size:22px; cursor:pointer; border-radius:50%; width:50px; height:50px;
+      display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,0.25);
+      transition: transform 0.2s;
+    }
+  `;
+  document.head.appendChild(style);
+
+  /* ===== FUNÇÃO DE VOZ ===== */
+  if ("speechSynthesis" in window) {
+    const btnOuvir = document.getElementById("btnOuvir");
+
+    function falarTexto() {
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        btnOuvir.innerText = "🔊";
+        btnOuvir.classList.remove("pulsando");
+        return;
+      }
+
+      const clone = linhaStatus.cloneNode(true);
+      const botao = clone.querySelector("#btnOuvir");
+      if (botao) botao.remove();
+
+      const texto = clone.innerText.trim();
+      if (!texto) return;
+
+      const fala = new SpeechSynthesisUtterance(texto);
+      fala.lang = "pt-BR";
+      fala.rate = 1;
+
+      fala.onstart = () => {
+        btnOuvir.innerText = "⏸️";
+        btnOuvir.classList.add("pulsando");
+      };
+      fala.onend = fala.onerror = () => {
+        btnOuvir.innerText = "🔊";
+        btnOuvir.classList.remove("pulsando");
+      };
+
+      window.speechSynthesis.speak(fala);
+    }
+
+    btnOuvir.onclick = falarTexto;
+
+    // Cancela leitura se usuário mudar de aba (iPhone/Safari)
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden && window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        btnOuvir.innerText = "🔊";
+        btnOuvir.classList.remove("pulsando");
+      }
+    });
+  }
+
+};
+
+ /* =========================
+    LINHA DO SOL
+ ========================= */
+ montarLinhaSol(atual.daily);
+ montarPrevisao5Dias(atual.daily);
+ montarGraficoPrevisao(atual.daily);
+
+ /* =========================
+    HISTÓRICO (30 DIAS)
+ ========================= */
+ const hoje = new Date();
+ const ontem = new Date(hoje); ontem.setDate(hoje.getDate()-1);
+ const ini = new Date(ontem); ini.setDate(ontem.getDate()-30);
+
+ const rHist = await fetch(
+  `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}` +
+  `&start_date=${ini.toISOString().split("T")[0]}` +
+  `&end_date=${ontem.toISOString().split("T")[0]}` +
+  `&hourly=pressure_msl,precipitation&timezone=UTC`
+ );
+ const hist = await rHist.json();
+ histSalvo = hist.hourly;
+
+ calcularPressaoChuva(hist.hourly);
+ montarGrafico(hist.hourly);
+ buscarTemperaturasMensais();
+}
+
+
+/* =========================
+   PM2.5 → US AQI
+========================= */
+function pm25ToUSAQI(pm25){
+ if(pm25<=12) return Math.round((50/12)*pm25);
+ if(pm25<=35.4) return Math.round(((100-51)/(35.4-12.1))*(pm25-12.1)+51);
+ if(pm25<=55.4) return Math.round(((150-101)/(55.4-35.5))*(pm25-35.5)+101);
+ if(pm25<=150.4) return Math.round(((200-151)/(150.4-55.5))*(pm25-55.5)+151);
+ if(pm25<=250.4) return Math.round(((300-201)/(250.4-150.5))*(pm25-150.5)+201);
+ if(pm25<=350.4) return Math.round(((400-301)/(350.4-250.5))*(pm25-250.5)+301);
+ if(pm25<=500.4) return Math.round(((500-401)/(500.4-350.5))*(pm25-350.5)+401);
+ return 500;
+}
+
+/* =========================
+   HISTÓRICO MENSAL (12 MESES)
+========================= */
+async function buscarTemperaturasMensais(){
+  const hoje = new Date();
+  const inicio = new Date(hoje.getFullYear()-1, hoje.getMonth(), 1);
+
+  const r = await fetch(
+    `https://archive-api.open-meteo.com/v1/archive?latitude=${lat}&longitude=${lon}` +
+    `&start_date=${inicio.toISOString().split("T")[0]}` +
+    `&end_date=${hoje.toISOString().split("T")[0]}` +
+    `&daily=temperature_2m_min,temperature_2m_max,temperature_2m_mean` +
+    `&timezone=auto`
+  );
+  const d = await r.json();
+  if(!d?.daily?.time) return;
+  const meses = {};
+  d.daily.time.forEach((t,i)=>{
+    const m = t.slice(0,7); // YYYY-MM
+    meses[m] ??= {min:[], max:[], med:[]};
+    meses[m].min.push(d.daily.temperature_2m_min[i]);
+    meses[m].max.push(d.daily.temperature_2m_max[i]);
+    meses[m].med.push(d.daily.temperature_2m_mean[i]);
+  });
+  const labels = [];
+  const min = [];
+  const max = [];
+  const med = [];
+  const nomesMes = [
+  "Jan","Fev","Mar","Abr","Mai","Jun",
+  "Jul","Ago","Set","Out","Nov","Dez"
+];
+
+Object.keys(meses).slice(-12).forEach(m=>{
+  const [ano,mes] = m.split("-");
+
+  labels.push(`${nomesMes[Number(mes)-1]}/${ano.slice(2)}`);
+
+  min.push(media(meses[m].min).toFixed(1));
+  max.push(media(meses[m].max).toFixed(1));
+  med.push(media(meses[m].med).toFixed(1));
+});
+
+  montarGraficoMensal(labels, min, med, max);
+}
+
+function media(arr){
+  return arr.reduce((a,b)=>a+b,0) / arr.length;
+}
+
+function montarGraficoMensal(labels, min, med, max){
+  chartMensal?.destroy();
+
+  chartMensal = new Chart(
+    document.getElementById("graficoMensal"),
+    {
+      type:"line",
+      data:{
+        labels,
+        datasets:[
+          {
+            label:"Mínima(°C)",
+            data:min,
+            tension:.35,
+            borderWidth:2,
+            pointRadius:4
+          },
+          {
+            label:"Média(°C)",
+            data:med,
+            tension:.35,
+            borderWidth:3,
+            pointRadius:4
+          },
+          {
+            label:"Máxima(°C)",
+            data:max,
+            tension:.35,
+            borderWidth:2,
+            pointRadius:4
+          }
+        ]
+      },
+      options:{
+        plugins:{
+          title:{
+            display:true,
+            text:"Temperatura Mensal - últimos 12 Meses — Mín., Média e Máx.",
+            font:{size:13, weight:"bold"},
+            color:document.body.classList.contains("dark") ? "#e6edf3" : "#000"
+          }
+        },
+        scales: {
+          x: {
+            ticks: {
+              color: "#006400", // verde escuro
+              font: {
+                size: 12,
+                weight: "bold"
+              }
+            }
+          },
+          y: {
+            ticks: {
+              color: "#006400" // opcional: se quiser o eixo Y também verde escuro
+            }
+          }
+        }
+      }
+    }
+  );
+}
+
+
+function normalizarTexto(str) {
+  return str
+    .toLowerCase()
+    .normalize("NFD") // separa acentos
+    .replace(/[\u0300-\u036f]/g, "") // remove acentos
+    .replace(/['’`´-]/g, "") // remove apóstrofo e hífen
+    .replace(/\s+/g, "") // remove espaços
+    .trim();
+}
+
+
+function avaliarFotografia(temp, nebulosidade, chuvaProb, nascerSol, porSol) {
+  if (chuvaProb > 50 || nebulosidade > 70) return "(Ruim) ";
+  if (chuvaProb > 20 || nebulosidade > 40) return "(Médio) ";
+  return "(Bom) ";
+}
+
+/* =========================
+   Horário de ouro
+========================= */
+function calcularHorarioOuroCompacto(sunrise, sunset){
+  // sunrise e sunset em formato "YYYY-MM-DDTHH:MM"
+  const formatarHora = (d) => `${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")}`;
+
+  const nascer = new Date(sunrise);
+  const por = new Date(sunset);
+
+  // Manhã: nascer do sol até +1h30
+  const manhaInicio = nascer;
+  const manhaFim = new Date(nascer.getTime() + 90*60*1000); // +1h30 em ms
+
+  // Tarde: -1h30 até pôr do sol
+  const tardeInicio = new Date(por.getTime() - 90*60*1000); 
+  const tardeFim = por;
+
+  return `${formatarHora(manhaInicio)} as ${formatarHora(manhaFim)} e ${formatarHora(tardeInicio)} as ${formatarHora(tardeFim)}`;
+}
+
+function avaliarCorrida(temp, chuva, vento, uv){
+  if (temp >= 15 && temp <= 28 && chuva < 20 && vento <= 12 && uv <= 7)
+    return "(Boa) ";
+  if (temp >= 10 && temp <= 32 && chuva < 40)
+    return "(Regular) ";
+  return "(Não indicada) ";
+}
+
+function avaliarCaminhada(temp, chuvaProb, vento, uv, vis) {
+  if (chuvaProb > 60 || vento > 30 || vis < 1500 || temp > 35 || temp < 5)
+    return "(Ruim) ";
+  if (
+    (temp >= 10 && temp < 15) ||
+    (temp > 30 && temp <= 35) ||
+    chuvaProb >= 30 ||
+    vento > 20 ||
+    uv > 8
+  )
+    return "(Razoável) ";
+  if (temp >= 15 && temp <= 30 && chuvaProb < 30 && vento <= 20 && uv <= 7)
+    return "(Boa) ";
+  return "(Razoável) ";
+}
+
+function avaliaCiclismo(probChuva, vento, pressao) {
+  if (probChuva > 50 || vento > 25 || pressao < 1008)
+    return "(Não recomendado) ";
+  if (vento <= 10 && probChuva < 20)
+    return "(Bom) ";
+  return "(Regular) ";
+}
+
+function avaliarEstrelas(nebulosidade, chuvaProb, luaIluminacao) {
+  if (nebulosidade <= 20 && chuvaProb < 20 && luaIluminacao <= 30)
+    return "(Boa) ";
+  if (nebulosidade <= 50 && chuvaProb < 40)
+    return "(Razoável) ";
+  return "(Ruim) ";
+}
+
+function avaliarPesca(pressao, vento, chuva){
+  if (pressao >= 1015 && vento <= 8 && chuva === 0)
+    return "(Boa) ";
+  if (pressao >= 1008 && vento <= 12 && chuva < 40)
+    return "(Regular) ";
+  return "(Ruim) ";
+}
+
+function avaliarChurrasco(temperatura, precipitacao, vento) {
+  // temperatura ideal entre 20°C e 35°C
+  // pouca chance de chuva (<30%)
+  // vento leve (<20 km/h)
+  if (temperatura >= 20 && temperatura <= 35 && precipitacao < 30 && vento < 20) {
+    return "(Ótimo)";
+  } else if (temperatura >= 15 && temperatura <= 40 && precipitacao < 50) {
+    return "(Fique atento)";
+  } else {
+    return "(Melhor adiar)";
+  }
+}
+
+/* =========================
+   LEVAR GUARDA-CHUVA
+========================= */
+function verificarChuvaDiaria(atual) {
+
+  const agora = new Date();
+  const limite = new Date(agora.getTime() + 3 * 60 * 60 * 1000); // +3 horas
+
+  for (let i = 0; i < atual.hourly.time.length; i++) {
+
+    const dataHoraAPI = new Date(atual.hourly.time[i]);
+
+    // Verifica apenas entre agora e +3 horas
+    if (dataHoraAPI >= agora && dataHoraAPI <= limite) {
+
+      const chuva = atual.hourly.precipitation[i] ?? 0;
+      const prob = atual.hourly.precipitation_probability[i] ?? 0;
+
+      if (chuva > 0 || prob >= 10) {
+        return "(Leve um)";
+      }
+    }
+  }
+
+  return "(Não necessita)";
+}
+
+
+
+/* =======================
+Avaliação da praia 
+========================= */
+function avaliarPraia(temp, probChuva, vento, uv){
+  if (temp >= 25 && probChuva < 20 && vento <= 15 && uv <= 8)
+    return "Boa";
+  if (temp >= 20 && probChuva < 40)
+    return "Regular";
+  return "Não indicada";
+}
+
+
+/* =========================
+   ALTURA DAS ONDAS (API MARINHA)
+========================= */
+async function buscarAlturaOnda(lat, lon) {
+  try {
+    const r = await fetch(
+      `https://marine-api.open-meteo.com/v1/marine?latitude=${lat}&longitude=${lon}&hourly=wave_height&timezone=auto`
+    );
+
+    if (!r.ok) return null;
+
+    const d = await r.json();
+
+    if (!d.hourly?.wave_height || !d.hourly?.time) return null;
+
+    const agora = Date.now();
+    let idx = 0;
+    let menorDif = Infinity;
+
+    d.hourly.time.forEach((t, i) => {
+      const dif = Math.abs(new Date(t).getTime() - agora);
+      if (dif < menorDif) {
+        menorDif = dif;
+        idx = i;
+      }
+    });
+
+    const valor = d.hourly.wave_height[idx];
+
+    return valor != null ? Number(valor) : null;
+
+  } catch (e) {
+    return null;
+  }
+}
+
+
+function avaliarPiscina(temp, chuvaProb, vento) {
+  // Qualquer temperatura negativa ou muito baixa torna a piscina não recomendada
+  if (temp < 18 || chuvaProb > 60) {
+    return "(Não recomendado)";
+  }
+
+  // Condições ideais: temperatura agradável, pouca chuva e vento leve
+  if (temp >= 22 && chuvaProb < 40 && vento <= 20) {
+    return "(Boa)";
+  }
+
+  // Para condições intermediárias
+  return "(Regular)";
+}
+
+
+function avaliarAviao(vento, vis, chuva, tempestade){
+  if (tempestade || vento > 35 || vis < 2000)
+    return "(Risco elevado) ";
+  if (vento > 20 || chuva > 2)
+    return "(Atenção) ";
+  return "(Tranquilo) ";
+}
+
+function avaliarCarro(chuvaProb, vis, vento){
+  if (chuvaProb > 70 || vis < 1500)
+    return "(Cuidado na estrada) ";
+  if (chuvaProb > 40 || vento > 30)
+    return "(Atenção na estrada) ";
+  return "(Tranquilo)";
+}
+
+function avaliarMoto(temp, chuvaProb, vento, aqIndex) {
+  if(temp == null || chuvaProb == null || vento == null || aqIndex == null) return "";
+
+  // Condições para alerta
+  if(chuvaProb > 40) return "(Muita chuva) ";
+  if(vento > 40) return "(Vento forte) ";
+  if(aqIndex > 150) return "(Ar poluído)";
+
+  // Se todas condições ok
+  return "(Seguro) ";
+}
+
+function avaliarAlergias(umidade, vento, estacao) {
+  if (umidade >= 50 && vento <= 15)
+    return "Baixa";
+  if (umidade >= 35 && vento <= 25)
+    return "Moderada";
+  return "Alta";
+}
+
+function avaliarGripeResfriado(umidade, temp) {
+  // Exemplo: maior risco com temperatura baixa e umidade baixa
+  if (temp <= 18 && umidade <= 40) return "Alto risco";
+  if (temp <= 22 && umidade <= 50) return "Médio risco";
+  return "Baixo risco";
+}
+
+/* =======================
+   VITAMINA D
+========================= */
+function avaliarVitaminaD(uv) {
+
+if (uv >= 11)
+    return "(Extremo - Risco de queimadura.)";
+
+  if (uv >= 8)
+    return "(Muito Alta - 10–20 minutos já são suficientes)";
+  
+  if (uv >= 6)
+    return "(Alta - 15–25 minutos já são suficientes)";
+  
+  if (uv >= 3)
+    return "(Moderada - 30–40 minutos ao sol)";
+  
+  if (uv > 0)
+    return "(Baixa - exposição limitada)";
+  
+  return "(Indisponível no momento)";
+}
+
+/* =========================
+   RECOMENDAÇÃO DE ROUPAS
+========================= */
+function recomendarRoupas(temp) {
+  if (temp <= 10) return "( Use roupas bem quentes)";
+  if (temp <= 20) return "(Use casaco ou suéter)";
+  if (temp <= 25) return "(Leves, mas leve um agasalho)";
+  return "(Bem leves e confortáveis)";
+}
+
+function avaliarMosquitos(umidade, chuvaProb, temp) {
+  if (umidade == null || chuvaProb == null || temp == null)
+    return "";
+  if (umidade >= 75 && (chuvaProb >= 40 || temp >= 28))
+    return "Elevado";
+  if (umidade >= 60 || chuvaProb >= 20)
+    return "Médio";
+  return "Baixo";
+}
+
+function avaliarPragas(temp, chuva, umidade) {
+  if(temp >= 25 && umidade >= 70 && chuva < 50){
+    return "Alto risco de pragas ao ar livre";
+  } else if(temp >= 20 && umidade >= 60){
+    return "Médio risco de pragas ao ar livre";
+  } else {
+    return "Baixo risco de pragas ao ar livre";
+  }
+}
+
+function ajustarNomeExibicao(nome, countryCode) {
+
+  // 🔒 Só aplica para Brasil
+  if (countryCode !== "BR") return nome;
+
+  return nome.replace(/d['’]([A-Za-zÀ-ÿ]+)/gi, (match, palavra) => {
+
+    // Capitaliza corretamente a palavra
+    const palavraFormatada =
+      palavra.charAt(0).toUpperCase() + palavra.slice(1).toLowerCase();
+
+    // Lista de palavras conhecidas masculinas
+    const masculinas = [
+      "Oeste", "Ouro", "Sul", "Norte", "Leste", "Cedro", "Campo"
+    ];
+
+    // Lista de palavras conhecidas femininas
+    const femininas = [
+      "Ávila", "Ilha", "Serra", "Lagoa"
+    ];
+
+    if (masculinas.includes(palavraFormatada))
+      return "do " + palavraFormatada;
+
+    if (femininas.includes(palavraFormatada))
+      return "da " + palavraFormatada;
+
+    // Se não souber, usa "de"
+    return "de " + palavraFormatada;
+
+  });
+
+}
+
+/* =========================
+   FUNÇÕES UTILITÁRIAS
+========================= */
+function normalizarEstadoParaSigla(estado){
+  if (!estado) return "";
+
+  const mapaEstados = {
+    "RIO GRANDE DO SUL":"RS","SANTA CATARINA":"SC","PARANA":"PR",
+    "SAO PAULO":"SP","RIO DE JANEIRO":"RJ","ESPIRITO SANTO":"ES",
+    "BAHIA":"BA","SERGIPE":"SE","ALAGOAS":"AL","PERNAMBUCO":"PE",
+    "PARAIBA":"PB","RIO GRANDE DO NORTE":"RN","CEARA":"CE","PIAUI":"PI",
+    "MARANHAO":"MA","PARA":"PA","AMAPA":"AP"
+  };
+
+  const chave = estado
+    .normalize("NFD").replace(/[\u0300-\u036f]/g,"")
+    .toUpperCase()
+    .replace("ESTADO DE ","")
+    .trim();
+}
+
+/* =========================
+   Qualidade do Ar - FORMATADORES
+========================= */
+function formatarAQ(v){
+
+ let classe = "";
+ let texto = "";
+
+ if (v <= 50) {
+   classe = "aq-bom";
+   texto = "(Boa)";
+ }
+ else if (v <= 100) {
+   classe = "aq-mod";
+   texto = "(Moderada)";
+ }
+ else if (v <= 150) {
+   classe = "aq-ruim";
+   texto = "(Insalubre)";
+ }
+ else if (v <= 200) {
+   classe = "aq-muito";
+   texto = "(Muito Insalubre)";
+ }
+ else if (v <= 300) {
+   classe = "aq-severo";
+   texto = "(Severo)";
+ }
+ else {
+   classe = "aq-extremo";
+   texto = "(Extrema)";
+ }
+
+ return `<span class="${classe}" data-aqi="${v}">${texto}</span>`;
+}
+
+
+/* =========================
+   UV
+========================= */
+function formatarUV(v){
+ let classe="",descricao="";
+ if(v<=0){classe="aq-bom";descricao="Nulo";}
+ else if(v<=2){classe="aq-bom";descricao="Baixo";}
+ else if(v<=5){classe="aq-mod";descricao="Médio";}
+ else if(v<=7){classe="aq-ruim";descricao="Alto";}
+ else if(v<=10){classe="aq-muito";descricao="Muito Alto";}
+ else{classe="aq-extremo";descricao="Extremo";}
+ return {classe,descricao};
+}
+
+/* =========================
+   LUA
+========================= */
+function calcularLua(data){
+  const ref = new Date(Date.UTC(2000, 0, 6, 18, 14, 0));
+  const ciclo = 29.530588853;
+
+  const dias = (data.getTime() - ref.getTime()) / 86400000;
+  const idade = ((dias % ciclo) + ciclo) % ciclo;
+  const frac = idade / ciclo;
+
+  const iluminacao = Math.round(
+    (1 - Math.cos(2 * Math.PI * frac)) / 2 * 100
+  );
+
+  let fase = "";
+
+  if (idade < 1.84566) fase = "Lua Nova 🌑";
+  else if (idade < 5.53699) fase = "Lua Crescente 🌒";
+  else if (idade < 9.22831) fase = "Quarto Crescente 🌓";
+  else if (idade < 12.91963) fase = "Crescente Gibosa 🌔";
+  else if (idade < 16.61096) fase = "Lua Cheia 🌕";
+  else if (idade < 20.30228) fase = "Minguante Gibosa 🌖";
+  else if (idade < 23.99361) fase = "Quarto Minguante 🌗";
+  else if (idade < 27.68493) fase = "Lua Minguante 🌘";
+  else fase = "Lua Nova 🌑";
+
+  return {
+    fase,
+    iluminacao,
+    idade: idade.toFixed(1)
+  };
+}
+
+function formatarChuvaClasse(v){
+ if(v<=20) return "chuva-bom";
+ if(v<=40) return "chuva-mod";
+ if(v<=60) return "chuva-ruim";
+ if(v<=80) return "chuva-muito";
+ return "chuva-extremo";
+}
+
+/* =========================
+   STATUS
+========================= */
+function definirStatus(p,c){
+ linhaStatus.className="linha-status";
+ if(c>8||p<1005){
+  linhaStatus.classList.add("tempestade");
+  linhaStatus.innerText="⛈️Tempo:Risco de Tempestade";
+ }
+ else if(c>1||p<1012){
+  linhaStatus.classList.add("chuva");
+  linhaStatus.innerText="🌧️Tempo:Possibilidade de chuva";
+ }
+ else{
+  linhaStatus.classList.add("bom");
+  linhaStatus.innerText="☀️Tempo:Tempo bom";
+ }
+}
+
+/* =========================
+   SOL
+========================= */
+function montarLinhaSol(d){
+ if(!d?.time) return;
+ const diasSemana=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+ linhaSol.innerHTML="";
+ for(let i=0;i<4;i++){
+  const p=d.time[i].split("-");
+  const data=new Date(p[0],p[1]-1,p[2]);
+  linhaSol.innerHTML+=`
+   <div class="sol-dia">
+    ${p[2]}/${p[1]}<br>
+    ${diasSemana[data.getDay()]}<br>
+    🌅 ${d.sunrise[i].slice(11,16)}<br>
+    🌇 ${d.sunset[i].slice(11,16)}
+   </div>`;
+ }
+}
+
+/* =========================
+   PREVISÃO 5 DIAS
+========================= */
+function montarPrevisao5Dias(d){
+ if(!d?.time) return;
+ const diasSemana=["Dom","Seg","Ter","Qua","Qui","Sex","Sáb"];
+ previsao5.innerHTML="";
+ for(let i=0;i<5;i++){
+  const p=d.time[i].split("-");
+  const data=new Date(p[0],p[1]-1,p[2]);
+  previsao5.innerHTML+=`
+   <div class="previsao-dia">
+    ${p[2]}/${p[1]}<br>
+    ${diasSemana[data.getDay()]}<br>
+    🌧️ ${d.precipitation_sum[i]}mm (${d.precipitation_probability_max[i]}%)<br>
+    ${d.temperature_2m_min[i]}° / ${d.temperature_2m_max[i]}°
+   </div>`;
+ }
+}
+
+/* =========================
+   PRESSÃO × CHUVA
+========================= */
+function calcularPressaoChuva(h){
+ if(!h?.time) return;
+ const dias={};
+ h.time.forEach((t,i)=>{
+  const d=t.split("T")[0];
+  dias[d]??={p:[],mm:0};
+  dias[d].p.push(h.pressure_msl[i]);
+  dias[d].mm+=h.precipitation[i];
+ });
+ const press=[];
+ Object.values(dias).forEach(d=>{
+  if(d.mm>=1) press.push(d.p.reduce((a,b)=>a+b)/d.p.length);
+ });
+ if(press.length<3){
+  linhaAviso.innerHTML="🌧️ *Dados insuficientes para padrão confiável.";
+  return;
+ }
+}
+
+/* =========================
+   GRÁFICOS
+========================= */
+function montarGraficoPrevisao(d){
+ chartPrevisao?.destroy();
+ chartPrevisao=new Chart(
+  document.getElementById("graficoPrevisao"),{
+   data:{
+    labels:d.time.map(t=>t.slice(8,10)+"/"+t.slice(5,7)),
+    datasets:[
+     {type:"bar",label:"Chuva (mm)",data:d.precipitation_sum},
+     {type:"bar",label:"Prob. chuva (%)",data:d.precipitation_probability_max},
+     {type:"line",label:"Temp Min (°C)",data:d.temperature_2m_min},
+     {type:"line",label:"Temp Max (°C)",data:d.temperature_2m_max}
+    ]
+   },
+   options:{
+    plugins:{
+     title:{
+      display:true,
+      text:"Previsão de Chuva e Temperatura — 7 dias",
+      font:{size:12,weight:"bold"},
+      color:document.body.classList.contains("dark")?"#e6edf3":"#000"
+     }
+    }
+   }
+  }
+ );
+}
+
+function montarGrafico(h){
+ if(!h?.time) return;
+
+ const dias={}, chuva={};
+
+ h.time.forEach((t,i)=>{
+  const d=t.split("T")[0];
+  dias[d] ??= [];
+  dias[d].push(h.pressure_msl[i]);
+  chuva[d]=(chuva[d]||0)+h.precipitation[i];
+ });
+
+ const labels=[], press=[], mm=[];
+ Object.keys(dias).slice(-5).forEach(d=>{
+  const p=d.split("-");
+  labels.push(`${p[2]}/${p[1]}`);
+  press.push((dias[d].reduce((a,b)=>a+b)/dias[d].length).toFixed(1));
+  mm.push(chuva[d].toFixed(1));
+ });
+
+ chart?.destroy();
+ chart=new Chart(
+  document.getElementById("grafico"),{
+   data:{
+    labels,
+    datasets:[
+     {type:"line",label:"Pressão Média (hPa)",data:press,borderWidth:2,tension:.3},
+     {type:"bar",label:"Chuva Acumulada (mm)",data:mm,yAxisID:"y1"}
+    ]
+   },
+   options:{
+    plugins:{
+     title:{
+      display:true,
+      text:"Pressão Atmosférica × Chuva — Últimos 5 dias",
+      font:{size:12,weight:"bold"},
+      color:document.body.classList.contains("dark")?"#e6edf3":"#000"
+     }
+    },
+    scales:{
+     y:{title:{display:true,text:"Pressão (hPa)"}},
+     y1:{
+      position:"right",
+      beginAtZero:true,
+      grid:{drawOnChartArea:false},
+      title:{display:true,text:"Chuva (mm)"}
+     }
+    }
+   }
+  }
+ );
+}
+
+
+// =========================
+// FUNÇÃO QUE MONTA TEXTO LIMPO PARA VOZ
+// =========================
+function montarTextoFalado() {
+
+  const status = document.getElementById("linhaStatus");
+  if (!status) return "";
+
+  let textos = [];
+
+  status.querySelectorAll("p, span, div").forEach(el => {
+
+    if (el.id === "btnOuvir") return;
+    if (el.querySelector("#btnOuvir")) return;
+
+    const t = el.innerText?.trim();
+    if (t) textos.push(t);
+  });
+
+  return textos.join(". ");
+}
+
+
+// =========================
+// BOTÃO DE VOZ FUNCIONANDO
+// =========================
+
+if ("speechSynthesis" in window) {
+
+  const btn = document.getElementById("btnOuvir");
+
+  if (btn) {
+
+    btn.onclick = function () {
+
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+        btn.innerText = "🔊";
+        return;
+      }
+
+      const texto = montarTextoFalado();
+      if (!texto) return;
+
+      const fala = new SpeechSynthesisUtterance(texto);
+      fala.lang = "pt-BR";
+      fala.rate = 0.95;
+      fala.pitch = 1.1;
+
+      fala.onstart = function () {
+        btn.innerText = "⏸️";
+      };
+
+      fala.onend = function () {
+        btn.innerText = "🔊";
+      };
+
+      fala.onerror = function () {
+        btn.innerText = "🔊";
+      };
+
+      window.speechSynthesis.speak(fala);
+    };
+
+  }
+}
+</script>
+</body>
+</html>
